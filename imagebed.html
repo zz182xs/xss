@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Pages 极简图床</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* 顶部标题栏 */
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 容器 */
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        /* Token 设置区 */
+        .config-box {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .config-box label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .config-box input {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+            font-family: monospace;
+        }
+
+        .config-box input:focus {
+            border-color: var(--primary);
+        }
+
+        .config-box button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .config-box button:hover {
+            background: var(--primary-dark);
+        }
+
+        /* 上传区 */
+        .upload-area {
+            border: 2px dashed var(--primary);
+            border-radius: 12px;
+            background: var(--card-bg);
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 30px;
+        }
+
+        .upload-area.dragover {
+            background: #f0f4ff;
+            border-color: var(--primary-dark);
+        }
+
+        .upload-area p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .upload-area span {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* 上传状态 */
+        .upload-status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--primary-dark);
+            font-weight: 500;
+        }
+
+        /* 图库网格 */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        }
+
+        .preview {
+            height: 160px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .preview audio {
+            width: 90%;
+        }
+
+        .card-body {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .filename {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .link-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #666;
+            outline: none;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .actions button {
+            flex: 1;
+            padding: 6px 0;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .actions button:hover {
+            opacity: 0.8;
+        }
+
+        .btn-copy { background: #e0e7ff; color: var(--primary-dark); }
+        .btn-open { background: #dcfce7; color: var(--success); }
+        .btn-delete { background: #fee2e2; color: var(--danger); }
+
+        /* Toast 提示 */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .empty-tip {
+            text-align: center;
+            color: #999;
+            grid-column: 1 / -1;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🖼️ GitHub Pages 图床</h1>
+        <button class="refresh-btn" id="refreshBtn">刷新图库</button>
+    </header>
+
+    <div class="container">
+        <!-- Token 设置 -->
+        <div class="config-box">
+            <label for="tokenInput">GitHub Token:</label>
+            <input type="password" id="tokenInput" placeholder="输入你的 Personal Access Token">
+            <button id="saveTokenBtn">保存</button>
+        </div>
+
+        <!-- 上传区 -->
+        <div class="upload-area" id="uploadArea">
+            <p>点击此处选择文件，或将文件<span>拖拽</span>到这里上传</p>
+            <p style="font-size: 12px; color: #999; margin-top: 8px;">支持多选（图片/音频格式）</p>
+            <input type="file" id="fileInput" multiple accept="image/*,audio/*">
+            <div class="upload-status" id="uploadStatus"></div>
+        </div>
+
+        <!-- 图库展示 -->
+        <div class="gallery-grid" id="galleryGrid">
+            <!-- 卡片将渲染在这里 -->
+            <div class="empty-tip">暂无文件，请先配置 Token 并上传</div>
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div id="toast-container"></div>
+
+    <script>
+        // ==========================================
+        // 请在这里修改你的配置信息
+        const CONFIG = {
+            USERNAME: 'zz182xs', // 你的 GitHub 用户名
+            REPO: 'xss',         // 你的仓库名
+            BRANCH: 'main'       // 你的分支名
+        };
+        // ==========================================
+
+        const API_BASE = `https://api.github.com/repos/${CONFIG.USERNAME}/${CONFIG.REPO}/contents`;
+        let token = localStorage.getItem('gh_token') || '';
+        let currentFiles = [];
+
+        // DOM 元素
+        const tokenInput = document.getElementById('tokenInput');
+        const saveTokenBtn = document.getElementById('saveTokenBtn');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const galleryGrid = document.getElementById('galleryGrid');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const toastContainer = document.getElementById('toast-container');
+
+        // 初始化
+        function init() {
+            if (token) {
+                tokenInput.value = token;
+                fetchFiles();
+            }
+        }
+
+        // 显示 Toast 提示
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s ease-in forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 保存 Token
+        saveTokenBtn.addEventListener('click', () => {
+            const val = tokenInput.value.trim();
+            if (val) {
+                token = val;
+                localStorage.setItem('gh_token', token);
+                showToast('Token 保存成功', 'success');
+                fetchFiles();
+            } else {
+                showToast('请输入 Token', 'error');
+            }
+        });
+
+        // 获取文件列表
+        async function fetchFiles() {
+            if (!token) {
+                showToast('请先配置 Token', 'error');
+                return;
+            }
+
+            galleryGrid.innerHTML = '<div class="empty-tip">正在加载图库...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}?ref=${CONFIG.BRANCH}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        // 仓库为空
+                        currentFiles = [];
+                        renderGallery();
+                        return;
+                    }
+                    throw new Error('获取文件列表失败，请检查 Token 权限或仓库配置');
+                }
+
+                const data = await response.json();
+                // 过滤出文件和特定的格式
+                const allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'mp3', 'wav', 'm4a', 'ogg', 'flac', 'aac'];
+                
+                currentFiles = data.filter(item => {
+                    if (item.type !== 'file') return false;
+                    const ext = item.name.split('.').pop().toLowerCase();
+                    return allowedExts.includes(ext);
+                }).map(item => {
+                    return {
+                        name: item.name,
+                        sha: item.sha,
+                        url: item.download_url,
+                        size: item.size
+                    };
+                });
+
+                renderGallery();
+                showToast(`已刷新，共 ${currentFiles.length} 个文件`, 'success');
+
+            } catch (error) {
+                showToast(error.message, 'error');
+                galleryGrid.innerHTML = `<div class="empty-tip" style="color:red">${error.message}</div>`;
+            }
+        }
+
+        // 渲染图库
+        function renderGallery() {
+            if (currentFiles.length === 0) {
+                galleryGrid.innerHTML = '<div class="empty-tip">仓库为空或没有支持的文件格式</div>';
+                return;
+            }
+
+            galleryGrid.innerHTML = '';
+            
+            // 生成基础外链 (如果仓库名等于用户名.github.io，则外链不带仓库名)
+            const baseUrl = CONFIG.REPO === `${CONFIG.USERNAME}.github.io` 
+                ? `https://${CONFIG.USERNAME}.github.io/`
+                : `https://${CONFIG.USERNAME}.github.io/${CONFIG.REPO}/`;
+
+            currentFiles.forEach(file => {
+                const ext = file.name.split('.').pop().toLowerCase();
+                const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext);
+                const cdnUrl = baseUrl + file.name; // 最终外链
+
+                // 注意：这里预览直接用 GitHub 的 download_url 可能有防盗链或缓存问题，用 jsDelivr 加速更稳
+                // 为了尽量不依赖外部库，这里我们还是用 raw 链接或者 jsdelivr
+                // 使用 jsDelivr 加速预览: https://cdn.jsdelivr.net/gh/用户名/仓库名@分支/文件名
+                const previewUrl = `https://cdn.jsdelivr.net/gh/${CONFIG.USERNAME}/${CONFIG.REPO}@${CONFIG.BRANCH}/${file.name}`;
+
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                let previewHtml = '';
+                if (isImg) {
+                    previewHtml = `<img src="${previewUrl}" alt="${file.name}" loading="lazy" onerror="this.src='${file.url}'">`;
+                } else {
+                    previewHtml = `<audio controls src="${previewUrl}"></audio>`;
+                }
+
+                card.innerHTML = `
+                    <div class="preview">${previewHtml}</div>
+                    <div class="card-body">
+                        <div class="filename" title="${file.name}">${file.name}</div>
+                        <input type="text" class="link-input" value="${cdnUrl}" readonly>
+                        <div class="actions">
+                            <button class="btn-copy" onclick="copyLink('${cdnUrl}')">复制</button>
+                            <button class="btn-open" onclick="window.open('${cdnUrl}', '_blank')">打开</button>
+                            <button class="btn-delete" onclick="deleteFile('${file.name}', '${file.sha}')">删除</button>
+                        </div>
+                    </div>
+                `;
+                galleryGrid.appendChild(card);
+            });
+        }
+
+        // 复制外链
+        function copyLink(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('链接已复制', 'success');
+                }).catch(() => {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('链接已复制', 'success');
+            } catch (err) {
+                showToast('复制失败，请手动复制', 'error');
+            }
+            textArea.remove();
+        }
+
+        // 删除文件
+        async function deleteFile(filename, sha) {
+            if (!confirm(`确定要删除 ${filename} 吗？此操作不可恢复。`)) return;
+
+            try {
+                showToast(`正在删除 ${filename}...`);
+                const response = await fetch(`${API_BASE}/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `Delete ${filename} via Web UI`,
+                        sha: sha,
+                        branch: CONFIG.BRANCH
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || '删除失败');
+                }
+
+                showToast('删除成功', 'success');
+                fetchFiles(); // 刷新列表
+
+            } catch (error) {
+                showToast(`删除失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 文件上传相关
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFiles(e.target.files);
+            }
+            fileInput.value = ''; // 清空以便下次选同一个文件
+        });
+
+        // 处理多文件上传
+        async function handleFiles(files) {
+            if (!token) {
+                showToast('请先保存 Token！', 'error');
+                return;
+            }
+
+            const fileArr = Array.from(files);
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < fileArr.length; i++) {
+                const file = fileArr[i];
+                uploadStatus.textContent = `正在上传 (${i + 1}/${fileArr.length}): ${file.name}`;
+                
+                try {
+                    await uploadSingleFile(file);
+                    successCount++;
+                } catch (error) {
+                    console.error(error);
+                    failCount++;
+                    showToast(`${file.name} 上传失败: ${error.message}`, 'error');
+                }
+            }
+
+            uploadStatus.textContent = `上传完成: 成功 ${successCount} 个, 失败 ${failCount} 个`;
+            showToast('上传处理完毕', successCount > 0 ? 'success' : 'error');
+            
+            if (successCount > 0) {
+                fetchFiles(); // 刷新图库
+            }
+
+            setTimeout(() => { uploadStatus.textContent = ''; }, 3000);
+        }
+
+        // 单文件上传核心逻辑
+        function uploadSingleFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    // 提取 Base64 内容 (去掉 data:image/png;base64, 前缀)
+                    const base64Content = reader.result.split(',')[1];
+                    const filename = file.name;
+
+                    try {
+                        // 第一步：尝试上传
+                        let response = await fetch(`${API_BASE}/${encodeURIComponent(filename)}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Accept': 'application/vnd.github.v3+json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                message: `Upload ${filename} via Web UI`,
+                                content: base64Content,
+                                branch: CONFIG.BRANCH
+                            })
+                        });
+
+                        // 如果文件已存在 (422 状态码)，先获取它的 sha 然后覆盖
+                        if (response.status === 422) {
+                            // 获取现有文件的 sha
+                            const getRes = await fetch(`${API_BASE}/${encodeURIComponent(filename)}?ref=${CONFIG.BRANCH}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            if (getRes.ok) {
+                                const existingData = await getRes.json();
+                                // 再次尝试带 sha 的 PUT 请求
+                                response = await fetch(`${API_BASE}/${encodeURIComponent(filename)}`, {
+                                    method: 'PUT',
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                        'Accept': 'application/vnd.github.v3+json',
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        message: `Update ${filename} via Web UI`,
+                                        content: base64Content,
+                                        branch: CONFIG.BRANCH,
+                                        sha: existingData.sha // 覆盖的关键
+                                    })
+                                });
+                            }
+                        }
+
+                        if (!response.ok) {
+                            const errData = await response.json();
+                            throw new Error(errData.message || '上传失败');
+                        }
+
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = () => reject(new Error('读取文件失败'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 刷新按钮
+        refreshBtn.addEventListener('click', fetchFiles);
+
+        // 启动
+        init();
+
+    </script>
+</body>
+</html>
